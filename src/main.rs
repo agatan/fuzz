@@ -57,19 +57,45 @@ fn print_lines(rbox: &mut rustbox::RustBox, lines: &[&str], selected_line: usize
     }
 }
 
-fn search<'a>(src: &[&'a str], needle: &str, is_regexp: bool) -> Vec<&'a str> {
-    if !is_regexp {
-    src.iter().filter(|s| s.contains(needle)).map(|&s| s).collect()
-    } else {
-        let reg = match regex::Regex::new(needle) {
-            Ok(reg) => reg,
-            Err(_) => return vec![],
-        };
-        src.iter().filter(|s| reg.is_match(s)).map(|&s| s).collect()
+#[derive(Copy, Clone)]
+enum SearchType {
+    Normal,
+    Regexp,
+    Fuzzy,
+}
+
+impl SearchType {
+    fn next(self) -> Self {
+        match self {
+            SearchType::Normal => SearchType::Regexp,
+            SearchType::Regexp => SearchType::Fuzzy,
+            SearchType::Fuzzy => SearchType::Normal
+        }
     }
 }
 
-fn fuzzy_find(contents: &str, mut is_regexp: bool) -> Option<&str> {
+fn search<'a>(src: &[&'a str], needle: &str, search_type: SearchType) -> Vec<&'a str> {
+    match search_type {
+        SearchType::Regexp => src.iter().filter(|s| s.contains(needle)).map(|&s| s).collect(),
+        SearchType::Normal => {
+            let reg = match regex::Regex::new(needle) {
+                Ok(reg) => reg,
+                Err(_) => return vec![],
+            };
+            src.iter().filter(|s| reg.is_match(s)).map(|&s| s).collect()
+        }
+        SearchType::Fuzzy => {
+            let reg = format!(".*{}.*", needle.chars().map(|c| format!("{}", c)).collect::<Vec<_>>().join(".*"));
+            let reg = match regex::Regex::new(&reg) {
+                Ok(reg) => reg,
+                Err(_) => return vec![],
+            };
+            src.iter().filter(|s| reg.is_match(s)).map(|&s| s).collect()
+        }
+    }
+}
+
+fn fuzzy_find(contents: &str, mut typ: SearchType) -> Option<&str> {
     let mut rbox = rustbox::RustBox::init(Default::default()).unwrap();
     let lines: Vec<_> = contents.lines().collect();
     let mut current_lines = lines.clone();
@@ -92,23 +118,25 @@ fn fuzzy_find(contents: &str, mut is_regexp: bool) -> Option<&str> {
                     }
                     rustbox::Key::Char(c) => {
                         needle.push(c);
-                        current_lines = search(&lines, &needle, is_regexp);
+                        current_lines = search(&lines, &needle, typ);
                     }
                     rustbox::Key::Backspace => {
                         needle.pop();
-                        current_lines = search(&lines, &needle, is_regexp);
+                        current_lines = search(&lines, &needle, typ);
                     }
-                    rustbox::Key::Up | rustbox::Key::Ctrl('p') => {
+                    rustbox::Key::Up |
+                    rustbox::Key::Ctrl('p') => {
                         if selected_line > 0 {
                             selected_line -= 1;
                         }
                     }
-                    rustbox::Key::Down | rustbox::Key::Ctrl('n') => {
+                    rustbox::Key::Down |
+                    rustbox::Key::Ctrl('n') => {
                         selected_line += 1;
                     }
                     rustbox::Key::Ctrl('r') => {
-                        is_regexp = !is_regexp;
-                        current_lines = search(&lines, &needle, is_regexp);
+                        typ = typ.next();
+                        current_lines = search(&lines, &needle, typ);
                     }
                     rustbox::Key::Enter => return current_lines.get(selected_line).map(|&s| s),
                     _ => {}
@@ -142,7 +170,12 @@ fn main() {
         contents
     };
 
-    let result = fuzzy_find(&contents, matches.opt_present("r"));
+    let typ = if matches.opt_present("r") {
+        SearchType::Regexp
+    } else {
+        SearchType::Normal
+    };
+    let result = fuzzy_find(&contents, typ);
     if let Some(res) = result {
         println!("{}", res);
     }
