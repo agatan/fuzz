@@ -13,21 +13,19 @@ fn read_file(name: &str) -> Result<String, io::Error> {
     Ok(content)
 }
 
-fn process(contents: &str) {
-    for line in contents.lines() {
-        println!("{}", line);
-    }
-}
-
-fn process_with_number(contents: &str) {
-    for (i, line) in contents.lines().enumerate() {
-        println!("{:>8} {}", i + 1, line);
-    }
-}
-
 fn print_needle(rbox: &mut rustbox::RustBox, needle: &str) {
-    rbox.print(0, 0, rustbox::RB_NORMAL, rustbox::Color::White, rustbox::Color::Default, "QUERY> ");
-    rbox.print(7, 0, rustbox::RB_NORMAL, rustbox::Color::White, rustbox::Color::Default, needle);
+    rbox.print(0,
+               0,
+               rustbox::RB_NORMAL,
+               rustbox::Color::White,
+               rustbox::Color::Default,
+               "QUERY> ");
+    rbox.print(7,
+               0,
+               rustbox::RB_NORMAL,
+               rustbox::Color::White,
+               rustbox::Color::Default,
+               needle);
 }
 
 fn print_lines(rbox: &mut rustbox::RustBox, lines: &[&str], selected_line: usize) {
@@ -35,9 +33,19 @@ fn print_lines(rbox: &mut rustbox::RustBox, lines: &[&str], selected_line: usize
     for (i, line) in lines.iter().enumerate() {
         if selected_line == i {
             let line = format!("{:width$}", line, width = width);
-            rbox.print(0, i + 1, rustbox::RB_NORMAL, rustbox::Color::Red, rustbox::Color::Cyan, &line);
+            rbox.print(0,
+                       i + 1,
+                       rustbox::RB_NORMAL,
+                       rustbox::Color::Red,
+                       rustbox::Color::Cyan,
+                       &line);
         } else {
-            rbox.print(0, i + 1, rustbox::RB_NORMAL, rustbox::Color::White, rustbox::Color::Default, line);
+            rbox.print(0,
+                       i + 1,
+                       rustbox::RB_NORMAL,
+                       rustbox::Color::White,
+                       rustbox::Color::Default,
+                       line);
         }
     }
 }
@@ -83,9 +91,7 @@ fn fuzzy_find(contents: &str) -> Option<&str> {
                     rustbox::Key::Down => {
                         selected_line += 1;
                     }
-                    rustbox::Key::Enter => {
-                        return current_lines.get(selected_line).map(|&s| s)
-                    }
+                    rustbox::Key::Enter => return current_lines.get(selected_line).map(|&s| s),
                     _ => {}
                 }
             }
@@ -97,21 +103,13 @@ fn fuzzy_find(contents: &str) -> Option<&str> {
 fn main() {
     let args: Vec<_> = env::args().collect();
     let mut opts = getopts::Options::new();
-    opts.optflag("n", "", "Number the output lines");
-    opts.optflag("f", "", "Fuzzy finder");
     let matches = opts.parse(&args[1..]).unwrap();
 
     for filename in matches.free.iter() {
         let contents = read_file(filename).unwrap();
-        if matches.opt_present("n") {
-            process_with_number(&contents);
-        } else if matches.opt_present("f") {
-            let result = fuzzy_find(&contents);
-            if let Some(res) = result {
-                println!("{}", res);
-            }
-        } else {
-            process(&contents);
+        let result = fuzzy_find(&contents);
+        if let Some(res) = result {
+            println!("{}", res);
         }
     }
 }
