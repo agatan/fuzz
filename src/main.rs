@@ -69,7 +69,7 @@ fn search<'a>(src: &[&'a str], needle: &str, is_regexp: bool) -> Vec<&'a str> {
     }
 }
 
-fn fuzzy_find(contents: &str, is_regexp: bool) -> Option<&str> {
+fn fuzzy_find(contents: &str, mut is_regexp: bool) -> Option<&str> {
     let mut rbox = rustbox::RustBox::init(Default::default()).unwrap();
     let lines: Vec<_> = contents.lines().collect();
     let mut current_lines = lines.clone();
@@ -105,6 +105,10 @@ fn fuzzy_find(contents: &str, is_regexp: bool) -> Option<&str> {
                     }
                     rustbox::Key::Down | rustbox::Key::Ctrl('n') => {
                         selected_line += 1;
+                    }
+                    rustbox::Key::Ctrl('r') => {
+                        is_regexp = !is_regexp;
+                        current_lines = search(&lines, &needle, is_regexp);
                     }
                     rustbox::Key::Enter => return current_lines.get(selected_line).map(|&s| s),
                     _ => {}
