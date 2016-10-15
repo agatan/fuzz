@@ -14,6 +14,12 @@ fn read_file(name: &str) -> Result<String, io::Error> {
     Ok(content)
 }
 
+fn read_all<R: Read>(mut r: R) -> Result<String, io::Error> {
+    let mut c = String::new();
+    try!(r.read_to_string(&mut c));
+    Ok(c)
+}
+
 fn print_needle(rbox: &mut rustbox::RustBox, needle: &str) {
     rbox.print(0,
                0,
@@ -122,11 +128,18 @@ fn main() {
         ::std::process::exit(0);
     }
 
-    for filename in matches.free.iter() {
-        let contents = read_file(filename).unwrap();
-        let result = fuzzy_find(&contents, matches.opt_present("r"));
-        if let Some(res) = result {
-            println!("{}", res);
+    let contents = if matches.free.is_empty() {
+        read_all(io::stdin()).unwrap()
+    } else {
+        let mut contents = String::new();
+        for filename in matches.free.iter() {
+            contents += &read_file(&filename).unwrap();
         }
+        contents
+    };
+
+    let result = fuzzy_find(&contents, matches.opt_present("r"));
+    if let Some(res) = result {
+        println!("{}", res);
     }
 }
