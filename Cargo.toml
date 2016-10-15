@@ -6,3 +6,4 @@ authors = ["agatan <agatan039@gmail.com>"]
 [dependencies]
 getopts = "0.2"
 rustbox = "*"
+regex = "*"
